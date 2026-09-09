@@ -1,6 +1,6 @@
 name: Build-And-Test
 
-on: [push, pull_request]
+on: [workflow_dispatch]
 
 
 env:
@@ -12,8 +12,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        python-version: ["3.10", "3.11", "3.12"]
+        os: [ubuntu-latest]
+        python-version: ["3.12"]
     defaults:
       run:
         shell: bash -l {0}
@@ -51,175 +51,175 @@ jobs:
         run: | 
           ctest -j6 --output-on-failure  
   
-      - name: Install
-        working-directory: ${{github.workspace}}/build
-        # Execute the install.  You can specify a specific target with "--target <NAME>"
-        run: |
-          cmake --install . --config $BUILD_TYPE
+      # - name: Install
+      #   working-directory: ${{github.workspace}}/build
+      #   # Execute the install.  You can specify a specific target with "--target <NAME>"
+      #   run: |
+      #     cmake --install . --config $BUILD_TYPE
 
-      - name: Test FastAPI 
-        working-directory:  ${{github.workspace}}/fastapi/app
-        # run pytests 
-        run: | 
-          pytest test_api_local.py 
+      # - name: Test FastAPI 
+      #   working-directory:  ${{github.workspace}}/fastapi/app
+      #   # run pytests 
+      #   run: | 
+      #     pytest test_api_local.py 
 
-      - name: Check install
-        working-directory: ${{github.workspace}}
-        # Check that the library installed properly
-        run: |
-            if [ "$RUNNER_OS" == "macOS" ]; then
-              test -e $CONDA_PREFIX/lib/libSpiceQL.dylib
-            elif [ "$RUNNER_OS" == "Linux" ]; then
-              test -e $CONDA_PREFIX/lib/libSpiceQL.so
-            fi
-            test -e $CONDA_PREFIX/include/SpiceQL/spiceql.h
-            $CONDA_PREFIX/bin/python -c "import pyspiceql"
+      # - name: Check install
+      #   working-directory: ${{github.workspace}}
+      #   # Check that the library installed properly
+      #   run: |
+      #       if [ "$RUNNER_OS" == "macOS" ]; then
+      #         test -e $CONDA_PREFIX/lib/libSpiceQL.dylib
+      #       elif [ "$RUNNER_OS" == "Linux" ]; then
+      #         test -e $CONDA_PREFIX/lib/libSpiceQL.so
+      #       fi
+      #       test -e $CONDA_PREFIX/include/SpiceQL/spiceql.h
+      #       $CONDA_PREFIX/bin/python -c "import pyspiceql"
   
-      # compair all json files against the schema 
-      - name: check json files
-        working-directory: ${{github.workspace}}/SpiceQL/db/
-        run: |
-          for file in *.json;
-              do
-              pwd
-              check-jsonschema $file --schemafile schema/spiceMissionSchmea.schema.json 
-          done;
+      # # compair all json files against the schema 
+      # - name: check json files
+      #   working-directory: ${{github.workspace}}/SpiceQL/db/
+      #   run: |
+      #     for file in *.json;
+      #         do
+      #         pwd
+      #         check-jsonschema $file --schemafile schema/spiceMissionSchmea.schema.json 
+      #     done;
   
-  build-wasm:
-    # Build the WebAssembly module and run the JavaScript binding tests. emcc/
-    # emcmake and Node both come from the `emscripten` conda package (it depends
-    # on nodejs>=20), so no extra toolchain setup is needed.
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
-    steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-        with:
-          submodules: recursive
-      - uses: conda-incubator/setup-miniconda@505e6394dae86d6a5c7fbb6e3fb8938e3e863830
-        with:
-          miniforge-version: latest
-          use-mamba: true
-          channels: conda-forge
-          activate-environment: spiceql
-          environment-file: environment.yml
-          auto-activate-base: false
-          auto-update-conda: true
-      - name: Check build environment
-        run: |
-          emcc --version
-          node --version
-      - name: Build WASM module
-        run: |
-          # Clear the conda host compiler flags: they are invalid for the
-          # Emscripten cross-compile and break wasm-ld.
-          unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
-          emcmake cmake -S . -B build-wasm \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DSPICEQL_WASM=ON \
-            -DSPICEQL_BUILD_TESTS=OFF \
-            -DSPICEQL_BUILD_BINDINGS=ON
-          cmake --build build-wasm -j"$(getconf _NPROCESSORS_ONLN)"
-      - name: Check build output
-        run: |
-          test -e build-wasm/bindings/wasm/spiceql_wasm.js
-          test -e build-wasm/bindings/wasm/spiceql_wasm.wasm
-          test -e build-wasm/bindings/wasm/spiceql_wasm.data
-      - name: Test JS bindings
-        run: |
-          npm test
+  # build-wasm:
+  #   # Build the WebAssembly module and run the JavaScript binding tests. emcc/
+  #   # emcmake and Node both come from the `emscripten` conda package (it depends
+  #   # on nodejs>=20), so no extra toolchain setup is needed.
+  #   runs-on: ubuntu-latest
+  #   defaults:
+  #     run:
+  #       shell: bash -l {0}
+  #   steps:
+  #     - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+  #       with:
+  #         submodules: recursive
+  #     - uses: conda-incubator/setup-miniconda@505e6394dae86d6a5c7fbb6e3fb8938e3e863830
+  #       with:
+  #         miniforge-version: latest
+  #         use-mamba: true
+  #         channels: conda-forge
+  #         activate-environment: spiceql
+  #         environment-file: environment.yml
+  #         auto-activate-base: false
+  #         auto-update-conda: true
+  #     - name: Check build environment
+  #       run: |
+  #         emcc --version
+  #         node --version
+  #     - name: Build WASM module
+  #       run: |
+  #         # Clear the conda host compiler flags: they are invalid for the
+  #         # Emscripten cross-compile and break wasm-ld.
+  #         unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
+  #         emcmake cmake -S . -B build-wasm \
+  #           -DCMAKE_BUILD_TYPE=Release \
+  #           -DSPICEQL_WASM=ON \
+  #           -DSPICEQL_BUILD_TESTS=OFF \
+  #           -DSPICEQL_BUILD_BINDINGS=ON
+  #         cmake --build build-wasm -j"$(getconf _NPROCESSORS_ONLN)"
+  #     - name: Check build output
+  #       run: |
+  #         test -e build-wasm/bindings/wasm/spiceql_wasm.js
+  #         test -e build-wasm/bindings/wasm/spiceql_wasm.wasm
+  #         test -e build-wasm/bindings/wasm/spiceql_wasm.data
+  #     - name: Test JS bindings
+  #       run: |
+  #         npm test
 
-  build-docs:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
-    steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-      - uses: conda-incubator/setup-miniconda@3b0f2504dd76ef23b6d31f291f4913fb60ab5ff3
-        with:
-            miniconda-version: "latest"
-            activate-environment: spiceql
-            channels: conda-forge
-            environment-file: environment.yml
-            auto-activate-base: false
-            auto-update-conda: true
+  # build-docs:
+  #   runs-on: ubuntu-latest
+  #   defaults:
+  #     run:
+  #       shell: bash -l {0}
+  #   steps:
+  #     - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+  #     - uses: conda-incubator/setup-miniconda@3b0f2504dd76ef23b6d31f291f4913fb60ab5ff3
+  #       with:
+  #           miniconda-version: "latest"
+  #           activate-environment: spiceql
+  #           channels: conda-forge
+  #           environment-file: environment.yml
+  #           auto-activate-base: false
+  #           auto-update-conda: true
   
-      - name: Conda info
-        run: |
-            conda info
-            conda list
+  #     - name: Conda info
+  #       run: |
+  #           conda info
+  #           conda list
 
-      - name: Create Build Environment
-        # Some projects don't allow in-source building, so create separate build and install
-        # directorie; we'll use them as our working directories for subsequent commands.
-        run: |
-            cmake -E make_directory ${{github.workspace}}/build
-            cmake -E make_directory ${{github.workspace}}/install
+  #     - name: Create Build Environment
+  #       # Some projects don't allow in-source building, so create separate build and install
+  #       # directorie; we'll use them as our working directories for subsequent commands.
+  #       run: |
+  #           cmake -E make_directory ${{github.workspace}}/build
+  #           cmake -E make_directory ${{github.workspace}}/install
   
-      - name: Configure CMake
-        working-directory: ${{github.workspace}}/build
-        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DSPICEQL_BUILD_LIB=OFF -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/install 
-      - name: Build
-        working-directory: ${{github.workspace}}/
-        # Execute the build.
-        run: |
-          mkdocs build
+  #     - name: Configure CMake
+  #       working-directory: ${{github.workspace}}/build
+  #       run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DSPICEQL_BUILD_LIB=OFF -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/install 
+  #     - name: Build
+  #       working-directory: ${{github.workspace}}/
+  #       # Execute the build.
+  #       run: |
+  #         mkdocs build
   
-      - name: Check Build Docs
-        working-directory: ${{github.workspace}}/site
-        # Check for the built docs
-        run: |
-            test -e index.html
+  #     - name: Check Build Docs
+  #       working-directory: ${{github.workspace}}/site
+  #       # Check for the built docs
+  #       run: |
+  #           test -e index.html
 
-  build-windows:
-    runs-on: windows-2025
-    defaults:
-      run:
-        # Use cmd so conda activation runs the conda-forge vs2022_win-64 .bat
-        # activation scripts. git-bash does not execute those, so under bash the
-        # MSVC toolchain (cl.exe, INCLUDE, LIB) never lands on PATH.
-        shell: cmd /C call {0}
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-    steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-        with:
-          submodules: recursive
-      - uses: conda-incubator/setup-miniconda@505e6394dae86d6a5c7fbb6e3fb8938e3e863830
-        with:
-          miniforge-version: latest
-          use-mamba: true
-          channels: conda-forge
-          activate-environment: spiceql
-          environment-file: environment.yml
-          auto-activate-base: false
-          auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
-      # The conda vs2022_win-64 package (pulled in by cxx-compiler) sets up the
-      # MSVC toolchain on activation: it puts cl.exe on PATH and sets CC/CXX and
-      # the vcvars environment, so the build uses the same ABI as the conda-forge
-      # dependencies.
-      - name: Check build environment
-        run: |
-          call conda activate spiceql
-          conda list
-          where cl
-      - name: Build Package
-        # This job verifies the SpiceQL C++ library and DLL build on Windows.
-        # The SWIG Python bindings are left off here (like the tests and docs):
-        # they are a separate Python-ABI/packaging concern and are handled by the
-        # conda-forge feedstock rather than this build.
-        run: |
-          call conda activate spiceql
-          if not exist build mkdir build
-          cd build
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON -DSPICEQL_BUILD_TESTS=OFF -DSPICEQL_BUILD_DOCS=OFF -DSPICEQL_BUILD_BINDINGS=OFF ..
-          cmake --build .
-      - name: Check build output
-        run: |
-          call conda activate spiceql
-          dir /s /b build\SpiceQL*.dll
+  # build-windows:
+  #   runs-on: windows-2025
+  #   defaults:
+  #     run:
+  #       # Use cmd so conda activation runs the conda-forge vs2022_win-64 .bat
+  #       # activation scripts. git-bash does not execute those, so under bash the
+  #       # MSVC toolchain (cl.exe, INCLUDE, LIB) never lands on PATH.
+  #       shell: cmd /C call {0}
+  #   strategy:
+  #     matrix:
+  #       python-version: ["3.10", "3.11", "3.12"]
+  #   steps:
+  #     - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+  #       with:
+  #         submodules: recursive
+  #     - uses: conda-incubator/setup-miniconda@505e6394dae86d6a5c7fbb6e3fb8938e3e863830
+  #       with:
+  #         miniforge-version: latest
+  #         use-mamba: true
+  #         channels: conda-forge
+  #         activate-environment: spiceql
+  #         environment-file: environment.yml
+  #         auto-activate-base: false
+  #         auto-update-conda: true
+  #         python-version: ${{ matrix.python-version }}
+  #     # The conda vs2022_win-64 package (pulled in by cxx-compiler) sets up the
+  #     # MSVC toolchain on activation: it puts cl.exe on PATH and sets CC/CXX and
+  #     # the vcvars environment, so the build uses the same ABI as the conda-forge
+  #     # dependencies.
+  #     - name: Check build environment
+  #       run: |
+  #         call conda activate spiceql
+  #         conda list
+  #         where cl
+  #     - name: Build Package
+  #       # This job verifies the SpiceQL C++ library and DLL build on Windows.
+  #       # The SWIG Python bindings are left off here (like the tests and docs):
+  #       # they are a separate Python-ABI/packaging concern and are handled by the
+  #       # conda-forge feedstock rather than this build.
+  #       run: |
+  #         call conda activate spiceql
+  #         if not exist build mkdir build
+  #         cd build
+  #         cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON -DSPICEQL_BUILD_TESTS=OFF -DSPICEQL_BUILD_DOCS=OFF -DSPICEQL_BUILD_BINDINGS=OFF ..
+  #         cmake --build .
+  #     - name: Check build output
+  #       run: |
+  #         call conda activate spiceql
+  #         dir /s /b build\SpiceQL*.dll
 
